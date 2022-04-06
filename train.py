@@ -4,14 +4,14 @@ import os.path
 import torch.cuda
 from torch.optim import AdamW
 from transformers import get_linear_schedule_with_warmup
-from dataset import ChitChatDataset
+from dataset import ChitChatDataset, ChitChatDataset_test
 from tqdm import tqdm
 from torch.nn import CrossEntropyLoss
-from modeling_cpt import CPTForConditionalGeneration
 from utils.metrics import split_evaluate
+from transformers.models.bart import BartForConditionalGeneration
 
 class Trainer:
-    def __init__(self, model: CPTForConditionalGeneration, tokenizer, args):
+    def __init__(self, model: BartForConditionalGeneration, tokenizer, args):
         self.model = model
         self.tokenizer = tokenizer
         self.cls_token_id, self.sep_token_id, self.pad_token_id = tokenizer.convert_tokens_to_ids(['[CLS]', '[SEP]', '[PAD]'])
@@ -24,11 +24,9 @@ class Trainer:
 
         self.train_set = ChitChatDataset(self.tokenizer, args, 'train')
         self.dev_set = ChitChatDataset(self.tokenizer, args, 'dev')
-        self.test_set = ChitChatDataset(self.tokenizer, args, 'test')
 
         self.train_dataloader = self.train_set.get_dataloader(batch_size=self.batch_size, shuffle=True, num_workers=8)
         self.dev_dataloader = self.dev_set.get_dataloader(batch_size=self.batch_size, shuffle=False, num_workers=8)
-        self.test_dataloader = self.test_set.get_dataloader(batch_size=self.batch_size, shuffle=False, num_workers=8)
 
         self.optimize_step = 0
         self.backward_step = 0
@@ -136,11 +134,46 @@ class Trainer:
                 min_loss = avg_loss
             if avg_score > max_score:
                 max_score = avg_score
-                self.save_state_dict(filename="{}-epoch{}-loss{:.5f}-score{:.5f}.pt".format("cpt_base", epoch, avg_loss, avg_score))
+                self.save_state_dict(filename="epoch{}-loss{:.5f}-score{:.5f}.pt".format(epoch, avg_loss, avg_score))
         self.optimizer.zero_grad()
 
+class Tester:
+    def __init__(self, model: BartForConditionalGeneration, tokenizer, args):
+        self.model = model
+        self.tokenizer = tokenizer
+        self.cls_token_id, self.sep_token_id, self.pad_token_id = tokenizer.convert_tokens_to_ids(['[CLS]', '[SEP]', '[PAD]'])
+
+        self.args = args
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+        self.epoch = self.args.epoch
+        self.batch_size = self.args.batch_size
+
+        self.test_set = ChitChatDataset_test(self.tokenizer, args, 'test')
+
+        self.test_dataloader = self.test_set.get_dataloader(batch_size=self.batch_size, shuffle=False, num_workers=8)
+
+        if not os.path.exists("./save"):
+            os.mkdir("save")
+
+    @torch.no_grad()
     def test(self):
         if self.args.state_dict is not None:
             checkpoint = torch.load(self.args.state_dict, map_location='cpu')
             self.model.load_state_dict(checkpoint['model'])
-        return self.eval_epoch(self.test_dataloader)
+
+        self.model.eval()
+        self.model.to(self.device)
+        pred_result = []
+        for batch in tqdm(self.test_dataloader):
+            for k in batch.keys():
+                batch[k] = batch[k].to(self.device)
+            output = self.model.generate(input_ids=batch['input_ids'],
+                                         attention_mask=batch['attention_mask'],
+                                         max_length=100)
+            for i in range(len(output)):
+                pred_result.append(self.tokenizer.decode(output[i], skip_special_tokens=True))
+
+        with open('./save/result.txt', 'w') as f:
+            for item in pred_result:
+                f.write(str(item).replace(' ', '') + '\n')
