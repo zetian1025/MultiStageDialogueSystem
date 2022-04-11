@@ -23,14 +23,14 @@ def calculate_metrics(reference, predict, is_smooth=False):
     #-------------------bleu----------
     bleu_1 = bleu(reference, predict, 1, is_smooth)
     bleu_2 = bleu(reference, predict, 2, is_smooth)
-    bleu_3 = bleu(reference, predict, 3, is_smooth)
-    bleu_4 = bleu(reference, predict, 4, is_smooth)
+    # bleu_3 = bleu(reference, predict, 3, is_smooth)
+    # bleu_4 = bleu(reference, predict, 4, is_smooth)
 
     # -------------------f1----------
     f1 = f1_score(reference, predict)
 
-    return (bleu_1, bleu_2, bleu_3, bleu_4, f1)
-
+    # return (bleu_1, bleu_2, bleu_3, bleu_4, f1)
+    return (bleu_1, bleu_2, f1)
 
 def f1_score(reference, predict):
     reference = list(reference.replace(' ', ''))
@@ -73,30 +73,32 @@ def bleu(reference, predict, n, is_smooth=False):
 
 
 def update_metrics(metrics, results):
-    bleu_1, bleu_2, bleu_3, bleu_4, f1 = results
+    # bleu_1, bleu_2, bleu_3, bleu_4, f1 = results
+
+    bleu_1, bleu_2, f1 = results
     metrics["BLEU1"].append(bleu_1)
     metrics["BLEU2"].append(bleu_2)
-    metrics["BLEU3"].append(bleu_3)
-    metrics["BLEU4"].append(bleu_4)
+    # metrics["BLEU3"].append(bleu_3)
+    # metrics["BLEU4"].append(bleu_4)
     metrics["F1"].append(f1)
 
 def display_metrics(metrics):
     print("BLEU 1:", np.mean(metrics["BLEU1"]))
     print("BLEU 2:", np.mean(metrics["BLEU2"]))
-    print("BLEU 3:", np.mean(metrics["BLEU3"]))
-    print("BLEU 4:", np.mean(metrics["BLEU4"]))
+    # print("BLEU 3:", np.mean(metrics["BLEU3"]))
+    # print("BLEU 4:", np.mean(metrics["BLEU4"]))
     print("F1:", np.mean(metrics["F1"]))
 
 def list_metrics(metrics):
     return {
         'BLEU1': np.mean(metrics['BLEU1']),
         'BLEU2': np.mean(metrics['BLEU2']),
-        'BLEU3': np.mean(metrics['BLEU3']),
-        'BLEU4': np.mean(metrics['BLEU4']),
+        # 'BLEU3': np.mean(metrics['BLEU3']),
+        # 'BLEU4': np.mean(metrics['BLEU4']),
     }
 
 def split_evaluate(references, candidates):
-    metrics = {"BLEU1": [], "BLEU2": [], "BLEU3": [], "BLEU4": [], "F1": []}
+    metrics = {"BLEU1": [], "BLEU2": [], "F1": []}
     for reference, candidate in tqdm(zip(references, candidates), desc="Evaluating"):
         results = calculate_metrics(reference, candidate, True)
         update_metrics(metrics, results)

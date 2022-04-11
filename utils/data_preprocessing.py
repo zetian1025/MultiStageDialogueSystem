@@ -8,7 +8,7 @@ def init_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--path', default='../data/DuSinc', type=str)
     parser.add_argument('--file', default='test_dial_1.txt', type=str)
-    parser.add_argument('--save', default='../data', type=str)
+    parser.add_argument('--save', default='../data/Bart-FiD', type=str)
     parser.add_argument('--save_file', default='test.json', type=str)
     parser.add_argument('--model', default='fnlp/bart-base-chinese', type=str)
 
@@ -68,11 +68,74 @@ def load(path, tokenizer):
             data['other_knowledge'] = [tokenizer('')['input_ids']]
     return output_data
 
+def fid_load(path, tokenizer):
+    input_data = load_txt(path)
+    output_data = []
+    for data in tqdm(input_data):
+        data = json.loads(data)
+        history, past_knowledge = [], []
+        for item in data['conversation']:
+            if item['role'] == 'user':
+                history.append(item['utterance'])
+            elif item['use_kg_label'] == 'false':
+                output_data.append({
+                    'question': '[SEP]'.join(history),
+                    'target': item['utterance'],
+                    'ctx': []
+                })
+                history.append(item['utterance'])
+            else:
+                output_data.append({
+                    'question': '[SEP]'.join(history),
+                    'target': item['utterance'],
+                    'ctx': [{'title': item['use_query'], 'text': i} for i in item['use_knowledge'].split('。')]
+                })
+                history.append(item['utterance'])
+    for data in tqdm(output_data):
+        data['question'] = tokenizer(data['question'])['input_ids']
+        data['target'] = tokenizer(data['target'])['input_ids']
+        for item in data['ctx']:
+            item['title'] = tokenizer(item['title'])['input_ids']
+            item['text'] = tokenizer(item['text'])['input_ids']
+    return output_data
+
+
+def fid_load_test(path, tokenizer):
+    input_data = load_txt(path)
+    output_data = []
+    for data in tqdm(input_data):
+        data = json.loads(data)
+        history, past_knowledge = [], []
+        for item in data['conversation']:
+            if item['utterance'] != "":
+                history.append(item['utterance'])
+            elif item['use_kg_label'] == 'false':
+                output_data.append({
+                    'question': '[SEP]'.join(history),
+                    'target': item['utterance'],
+                    'ctx': []
+                })
+            else:
+                output_data.append({
+                    'question': '[SEP]'.join(history),
+                    'target': item['utterance'],
+                    'ctx': [{'title': item['use_query'], 'text': i} for i in item['use_knowledge'].split('。')]
+                })
+
+    for data in tqdm(output_data):
+        data['question'] = tokenizer(data['question'])['input_ids']
+        data['target'] = tokenizer(data['target'])['input_ids']
+        for item in data['ctx']:
+            item['title'] = tokenizer(item['title'])['input_ids']
+            item['text'] = tokenizer(item['text'])['input_ids']
+    return output_data
+
+
 if __name__ == '__main__':
     args = init_args()
     tokenizer = BertTokenizer.from_pretrained(args.model)
     input_path = os.path.join(args.path, args.file)
     output_path = os.path.join(args.save, args.save_file)
 
-    output_data = load_test(input_path, tokenizer)
+    output_data = fid_load_test(input_path, tokenizer)
     save_json(output_data, output_path)
