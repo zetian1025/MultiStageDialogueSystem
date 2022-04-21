@@ -1,3 +1,4 @@
+import json
 import math
 import os.path
 
@@ -150,8 +151,9 @@ class Tester:
         self.batch_size = self.args.batch_size
 
         self.test_set = ChitChatDataset_test(self.tokenizer, args, 'test')
-
         self.test_dataloader = self.test_set.get_dataloader(batch_size=self.batch_size, shuffle=False, num_workers=8)
+        self.dev_set = ChitChatDataset(self.tokenizer, args, 'dev')
+        self.dev_dataloader = self.dev_set.get_dataloader(batch_size=self.batch_size, shuffle=False, num_workers=8)
 
         if not os.path.exists("./save"):
             os.mkdir("save")
@@ -165,15 +167,28 @@ class Tester:
         self.model.eval()
         self.model.to(self.device)
         pred_result = []
-        for batch in tqdm(self.test_dataloader):
+        # for batch in tqdm(self.test_dataloader):
+        for batch in tqdm(self.dev_dataloader):
             for k in batch.keys():
                 batch[k] = batch[k].to(self.device)
             output = self.model.generate(input_ids=batch['input_ids'],
                                          attention_mask=batch['attention_mask'],
-                                         max_length=100)
+                                         max_length=100,
+                                         do_sample=True)
             for i in range(len(output)):
                 pred_result.append(self.tokenizer.decode(output[i], skip_special_tokens=True))
 
-        with open('./save/result.txt', 'w') as f:
-            for item in pred_result:
-                f.write(str(item).replace(' ', '') + '\n')
+        # with open('save/BART_test.txt', 'w') as f:
+        #     for item in pred_result:
+        #         f.write(str(item).replace(' ', '') + '\n')
+
+        res = []
+        for i, predict in zip(self.dev_set, pred_result):
+            res.append({
+                'history': self.tokenizer.decode(i['history']),
+                'knowledge': self.tokenizer.decode(i['knowledge']),
+                'predict': predict,
+                'gold': self.tokenizer.decode(i['response'], skip_special_tokens=True)
+            })
+        with open('save/BART_dev.txt', 'w', encoding='UTF-8') as f:
+            json.dump(res, f, ensure_ascii=False, indent=0)

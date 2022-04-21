@@ -68,7 +68,7 @@ def load(path, tokenizer):
             data['other_knowledge'] = [tokenizer('')['input_ids']]
     return output_data
 
-def fid_load(path, tokenizer):
+def fid_load(path):
     input_data = load_txt(path)
     output_data = []
     for data in tqdm(input_data):
@@ -81,7 +81,7 @@ def fid_load(path, tokenizer):
                 output_data.append({
                     'question': '[SEP]'.join(history),
                     'target': item['utterance'],
-                    'ctx': []
+                    'ctx': [{'title': 'none', 'text':'none'}]
                 })
                 history.append(item['utterance'])
             else:
@@ -91,16 +91,16 @@ def fid_load(path, tokenizer):
                     'ctx': [{'title': item['use_query'], 'text': i} for i in item['use_knowledge'].split('。')]
                 })
                 history.append(item['utterance'])
-    for data in tqdm(output_data):
-        data['question'] = tokenizer(data['question'])['input_ids']
-        data['target'] = tokenizer(data['target'])['input_ids']
-        for item in data['ctx']:
-            item['title'] = tokenizer(item['title'])['input_ids']
-            item['text'] = tokenizer(item['text'])['input_ids']
+    # for data in tqdm(output_data):
+    #     data['question'] = tokenizer(data['question'])['input_ids']
+    #     data['target'] = tokenizer(data['target'])['input_ids']
+    #     for item in data['ctx']:
+    #         item['title'] = tokenizer(item['title'])['input_ids']
+    #         item['text'] = tokenizer(item['text'])['input_ids']
     return output_data
 
 
-def fid_load_test(path, tokenizer):
+def fid_load_test(path):
     input_data = load_txt(path)
     output_data = []
     for data in tqdm(input_data):
@@ -113,7 +113,7 @@ def fid_load_test(path, tokenizer):
                 output_data.append({
                     'question': '[SEP]'.join(history),
                     'target': item['utterance'],
-                    'ctx': []
+                    'ctx': [{'title': 'none', 'text':'none'}]
                 })
             else:
                 output_data.append({
@@ -122,20 +122,20 @@ def fid_load_test(path, tokenizer):
                     'ctx': [{'title': item['use_query'], 'text': i} for i in item['use_knowledge'].split('。')]
                 })
 
-    for data in tqdm(output_data):
-        data['question'] = tokenizer(data['question'])['input_ids']
-        data['target'] = tokenizer(data['target'])['input_ids']
-        for item in data['ctx']:
-            item['title'] = tokenizer(item['title'])['input_ids']
-            item['text'] = tokenizer(item['text'])['input_ids']
+    # for data in tqdm(output_data):
+    #     data['question'] = tokenizer(data['question'])['input_ids']
+    #     data['target'] = tokenizer(data['target'])['input_ids']
+    #     for item in data['ctx']:
+    #         item['title'] = tokenizer(item['title'])['input_ids']
+    #         item['text'] = tokenizer(item['text'])['input_ids']
     return output_data
 
 
 if __name__ == '__main__':
     args = init_args()
-    tokenizer = BertTokenizer.from_pretrained(args.model)
+    # tokenizer = BertTokenizer.from_pretrained(args.model)
     input_path = os.path.join(args.path, args.file)
     output_path = os.path.join(args.save, args.save_file)
 
-    output_data = fid_load_test(input_path, tokenizer)
+    output_data = fid_load_test(input_path)
     save_json(output_data, output_path)
